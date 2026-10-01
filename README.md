@@ -1,143 +1,149 @@
 # long_mem
 
-**Compaction-Proof Memory for AI coding agents.**
+**Compaction-proof memory for AI coding agents.**
 
-> 对话不是存储介质。
-> 窗口里的东西会丢，那就别放窗口里——写到外部持久存储，窗口里只放指针。
+English | [简体中文](README.zh-CN.md)
+
+> The conversation is not a storage medium.
+> Anything that lives in the context window can be lost — so nothing lives there.
+> Memory lives outside. The window only holds pointers.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Agents](https://img.shields.io/badge/agents-Codex·ClaudeCode·ZCode·KimiCode-8A2BE2)
-![实测](https://img.shields.io/badge/实测-5天21小时·40%2B次压缩·零丢失-green)
+![Field-tested](https://img.shields.io/badge/field--tested-5d_21h_40%2B_compactions_zero_loss-green)
 ![X](https://img.shields.io/badge/X-%40Rylie1933-black?logo=x)
 
-**long_mem** 让 AI 编码代理在上下文压缩、会话重置、隔天续开之后照样接着干——不用你重复说一遍。
+**long_mem** keeps AI coding agents continuous across context compaction, session restarts, and multi-day runs — without you repeating yourself.
 
-实证：Codex CLI 连续跑了 **5 天 21 小时**，压缩 **40 多次**，没丢过上下文。全程公开记录：[polars-log](https://github.com/nextAgentPolars/polars-log)。
+Field-tested: one Codex CLI session ran for **5 days 21 hours** through **40+ compactions** with zero context loss. The full run log is public: [polars-log](https://github.com/nextAgentPolars/polars-log).
 
-构建过程与动态长期更新于 X：**[@Rylie1933](https://x.com/Rylie1933)**。
+Build logs and ongoing updates on X: **[@Rylie1933](https://x.com/Rylie1933)**.
 
-## 为什么需要它
+## Why
 
-所有 AI 编码代理（Claude Code、Codex、ZCode、Kimi Code……）都有同一个病：**对话就是它的全部记忆**。于是：
+Every AI coding agent — Claude Code, Codex, ZCode, Kimi Code — shares the same flaw: **the conversation is its entire memory.** So:
 
-- 窗口满了 → 压缩 → agent 失忆，忘掉你给过的授权和约束
-- 隔天续开 → 重来一遍，重做已经做完的活
-- 更糟的：一些上下文插件开始**采集你的提示词**、被动捕获子代理输出、强制生成摘要——把你的对话变成它的数据源
+- The window fills up, the agent compacts, and everything you told it — constraints, decisions, reasons — is gone. It re-does work you already approved.
+- Next-day sessions start from zero. You re-brief the agent on what it did yesterday.
+- Some context plugins make it worse: they harvest your prompts, passively capture subagent output, and force-summarize your sessions into their store.
 
-常见的补救是更好的摘要——那只是**更好的有损压缩**。
+The usual fix is better summarization — which is just **a better lossy compression**.
 
-long_mem 的做法是一个反转：**对话不是存储介质。**唯一长期记忆住在外部持久存储（engram + agent 自身 history），窗口里只放指针。压缩毁掉的是"对话"，而对话里没有唯一状态——所以压缩成了非事件。
+long_mem is an inversion: **the conversation is not a storage medium.** Long-term memory lives outside — a governed [engram](https://github.com/Gentleman-Programming/engram) store plus the agent's own history. The window only holds pointers. Compaction destroys the conversation, and the conversation holds nothing of value — so compaction becomes a non-event.
 
-## 工作原理
+## How it works
 
 ```text
-┌─ 会话启动 ────────────▶ 注入治理协议 + pinned 记忆索引
+┌─ session start ───────▶ inject governance policy + pinned memory index
 │
-├─ 会话中 ……  agent 把"值得记的判断"写入 engram（经治理 gateway）
-│              窗口里只有指针，按 ID 回读正文
+├─ during the session …  the agent writes durable judgments to engram
+│                         (through the governed gateway). The window
+│                         only holds pointers; bodies are read by ID.
 │
-├─ 上下文压缩 ──────────▶ 注入"直接续接"指令；按指针恢复，不重存摘要
+├─ compaction ──────────▶ inject the "continue directly" rule; recover by
+│                         pointer. Never re-summarize.
 │
-└─ 会话结束/隔天续开 ──▶ 从 engram + history 按需重建，不靠对话
+└─ session end / next day rebuild from engram + history as needed —
+                          never from the conversation.
 ```
 
-**两层存储：**
+**Two storage layers:**
 
-| 层 | 管什么 | 靠什么 |
+| Layer | What it holds | Backed by |
 |---|---|---|
-| 历史召回 | 发生了什么 | agent 自带 history（如 Codex 的 SQLite history） |
-| 判断沉淀 | 为什么这么定 | [engram](https://github.com/Gentleman-Programming/engram) |
+| History recall | What happened | The agent's own history (e.g. Codex's SQLite history) |
+| Judgment distillation | Why it was decided | [engram](https://github.com/Gentleman-Programming/engram) |
 
-**治理层是这个项目的重点。**上游记忆插件的三个自动口子——提示词采集、被动捕获、强制摘要——被焊死，只留启动注入和压缩恢复。防的是 agent 自己把记忆库搞脏：
+**The governance layer is the point.** Upstream memory plugins ship three automatic intake ports — prompt harvesting, passive subagent capture, forced session summaries. long_mem welds them shut and keeps exactly two: startup injection and post-compaction recovery. The thing being prevented is the agent polluting its own memory store.
 
-| 上游钩子 | 上游行为 | long_mem |
+| Upstream hook | What it does | long_mem |
 |---|---|---|
-| UserPromptSubmit | 采集每次提示词 | ❌ 焊死（可能带凭据） |
-| SubagentStop | 被动捕获子代理输出 | ❌ 焊死 |
-| SessionEnd | 强制生成摘要 | ❌ 焊死 |
-| SessionStart | 注入记忆 | ✅ 保留 |
-| 压缩后 | 恢复上下文 | ✅ 保留 |
+| UserPromptSubmit | Harvests every prompt | ❌ welded shut (may contain credentials) |
+| SubagentStop | Passively captures subagent output | ❌ welded shut |
+| SessionEnd | Force-generates a summary | ❌ welded shut |
+| SessionStart | Injects memory | ✅ kept |
+| Post-compaction | Recovers context | ✅ kept |
 
-## 快速开始
+## Quick start
 
-前置：安装 [engram](https://github.com/Gentleman-Programming/engram)：
+Prerequisite — install [engram](https://github.com/Gentleman-Programming/engram):
 
 ```sh
 brew install engram
 ```
 
-然后按你的 agent 选一行：
+Then pick your agent:
 
-| Agent | 安装 |
+| Agent | Install |
 |---|---|
-| **Codex** | 见 [PLUGIN.md](PLUGIN.md)（config.toml 加 marketplace） |
+| **Codex** | See [PLUGIN.md](PLUGIN.md) (add the marketplace to config.toml) |
 | **Claude Code** | `claude plugin marketplace add HOSRookie/long-mem` → install long-mem |
-| **ZCode** | 插件市场 → 添加 → 粘贴本仓库地址 |
-| **Kimi Code** | `/plugins install <本仓库>/adapters/kimi-code`，见[适配说明](adapters/kimi-code/README.md) |
-| **Gemini / Qwen / MiniMax / 其他** | 克隆本仓库 → `scripts/inject-rules.sh` + 按[兼容矩阵](#兼容矩阵)配 MCP |
+| **ZCode** | Plugin Marketplace → Add → paste this repo's URL |
+| **Kimi Code** | `/plugins install <repo>/adapters/kimi-code` — see the [adapter guide](adapters/kimi-code/README.md) |
+| **Gemini / Qwen / MiniMax / anything else** | Clone this repo → `scripts/inject-rules.sh` + wire up MCP per the [compatibility matrix](#compatibility) |
 
-装完之后：开新会话，agent 自动看到治理协议和你项目的 pinned 记忆索引。压缩之后它会直接续接——试一下就懂了。
+After installing: open a new session. The agent sees the governance policy and your project's pinned memory index automatically. When the window compacts, it continues directly — you'll see what that means the first time it happens.
 
-## 兼容矩阵
+## Compatibility
 
-| Agent | MCP | 常驻规则 | 生命周期钩子 | 手动恢复 |
+| Agent | MCP | Resident rules | Lifecycle hooks | Manual recovery |
 |---|---|---|---|---|
-| Codex | ✓ | AGENTS.md | ✓ 插件 hooks | compact-prompt |
-| Claude Code | ✓ | CLAUDE.md 注入 | ✓ SessionStart（含 compact） | skill long-mem-recover |
-| ZCode | ✓ | rules 模板 | ✓ SessionStart（compact matcher 待实测） | skill long-mem-recover |
-| Kimi Code | ✓ 插件捆绑 | systemPrompt 注入 | sessionStart.skill ✓（hooks 待验证） | skill |
-| Gemini / Qwen / 其他 | ✓ | inject-rules.sh | —（规则 + 手动恢复） | skill |
+| Codex | ✓ | AGENTS.md | ✓ plugin hooks | compact-prompt |
+| Claude Code | ✓ | CLAUDE.md injection | ✓ SessionStart (incl. compact) | skill long-mem-recover |
+| ZCode | ✓ | rules template | ✓ SessionStart (compact matcher untested) | skill long-mem-recover |
+| Kimi Code | ✓ bundled | systemPrompt injection | sessionStart.skill (hooks upstream WIP) | skill |
+| Gemini / Qwen / others | ✓ | inject-rules.sh | — (rules + manual recovery) | skill |
 
-原则：**MCP 是最大公约数，钩子是加分项。**没有钩子的 agent 用常驻规则 + 手动恢复 skill 也能拿到 90% 的价值；有钩子的 agent 额外获得零操作注入。
+The principle: **MCP is the greatest common denominator; hooks are a bonus.** Hookless agents still get ~90% of the value from resident rules + a manual recovery skill; hooked agents additionally get zero-touch injection.
 
-## 治理与安全
+## Trust model
 
-记忆库的信任模型是 fail-closed：
+Memory access is fail-closed:
 
-- 写入唯一入口是治理 gateway：工具黑名单（`mem_delete` / `mem_capture_passive` / `mem_save_prompt` / `mem_merge_projects`）
-- 上游二进制 sha256 身份门：漂移即拒
-- 会话 ↔ 项目双重绑定（DB 属主检查 + 本机探针独立验证）
-- 记忆内容 16KB 上限——正文放外面，记忆里存证据引用
-- 数据库读取强制只读；云同步默认关；凭证明文不进记忆
+- The write path goes through a single governed gateway. Blocked tools: `mem_delete`, `mem_capture_passive`, `mem_save_prompt`, `mem_merge_projects`.
+- Upstream binary identity gate: sha256 drift is refused.
+- Session ↔ project double binding: DB owner check + independent local probe verification.
+- 16 KB cap on memory content — bodies live outside; memory stores evidence references.
+- The database is opened read-only; cloud sync defaults to off; credentials never enter memory.
 
-完整协议见 [governance/POLICY.md](governance/POLICY.md)。
+Full policy: [governance/POLICY.md](governance/POLICY.md).
 
-## 已知限制
+## Known limitations
 
-- engram 的中文全文搜索弱：召回靠索引 + 按 ID 读，不靠搜索
-- 单信任域：多 agent 共库时，权限靠行为规范而非访问控制
-- 什么该存靠 agent 判断：机制保证存了的不丢，不保证判断本身正确
+- engram's full-text search is weak on Chinese: recall works via the index + by-ID reads, not search.
+- Single trust domain: when multiple agents share one store, access control is by convention, not enforcement.
+- What's worth saving is judged by the agent: the mechanism guarantees saved memories aren't lost — it can't guarantee the judgment itself was right.
 
-## 反馈与贡献
+## Feedback & contributing
 
-- 建议与反馈：欢迎开 [Issue](https://github.com/HOSRookie/long-mem/issues)，每条都会看。
-- 代码贡献：先开 Issue 对齐方向；main 分支受保护，PR 由作者审核后合并——**防投毒是第一原则**。
+- Suggestions and feedback: open an [Issue](https://github.com/HOSRookie/long-mem/issues). Everything gets read.
+- Code contributions: open an Issue first to align direction. main is a protected branch; PRs are reviewed and merged by the maintainer — **keeping the memory store clean comes first**.
 
-## 文档
+## Docs
 
 [PLUGIN.md](PLUGIN.md) · [docs/USAGE.md](docs/USAGE.md) · [adapters/](adapters/) · [templates/](templates/) · [governance/POLICY.md](governance/POLICY.md)
 
-## 生态
+## Ecosystem
 
-long_mem 是一套更大工程体系的冰山一角：
+long_mem is the tip of a larger system:
 
-- **北极星**（进行中）— 面向严肃开发场景的 agent 任务治理系统，long_mem 只是从它拆出来的一个微不足道的小功能。可以透露的一点：我在用结构化治理层抑制 LLM 的幻觉——**不是消灭幻觉，是让幻觉没有可以生效的场景**。公开过程记录：[polars-log](https://github.com/nextAgentPolars/polars-log)。
-- **蓝色空间号**（保密中）— 名字很浪漫，东西还在验证。等它值得说的时候，这里会有链接。
+- **Polaris** (in progress) — a task-governance system for serious development work. long_mem is a minor component extracted from it. One thing I can share: I'm using a structured governance layer to contain LLM hallucinations — **not by eliminating them, but by leaving them nowhere to take effect**. The run log is public: [polars-log](https://github.com/nextAgentPolars/polars-log).
+- **Blue Space** (under wraps) — the name is romantic; the thing is still being validated. When it's ready to talk about, there'll be a link here.
 
-如果这个方向对你有吸引力，欢迎点个 Star——对长周期项目来说，Star 是为数不多的燃料。
+If that direction interests you, a Star helps — for a long-cycle project, stars are one of the few fuels it runs on.
 
-## 赞赏
+## Support
 
-开发这个项目烧的是真金白银的 token。如果 long_mem 实实在在帮到了你，厚着脸皮讨一份打赏——每一份都会变成下一轮实验的上下文窗口。
+This project burns real money in tokens. If long_mem genuinely helped you, a donation is appreciated — every one of them becomes the context window for the next experiment.
 
-海外：[GitHub Sponsors](https://github.com/sponsors/HOSRookie)
+International: [GitHub Sponsors](https://github.com/sponsors/HOSRookie)
 
-国内：扫码请作者喝杯咖啡。
+Otherwise:
 
-| 支付宝 | 微信 |
+| Alipay | WeChat |
 |---|---|
 | <img src="docs/images/donate-alipay.jpg" width="240"/> | <img src="docs/images/donate-wechat.jpg" width="240"/> |
 
-## 许可
+## License
 
 [MIT](LICENSE)
