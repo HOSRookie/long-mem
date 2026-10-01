@@ -1,0 +1,16 @@
+{
+  "name": "long-mem",
+  "version": "0.1.1",
+  "description": "Compaction-proof long-term memory: session-start injection, post-compaction recovery, governed engram memory via MCP.",
+  "author": {
+    "name": "HOSRookie"
+  },
+  "hooks": "./hooks/claude-hooks.json",
+  "mcpServers": {
+    "long_mem": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/mcp-gateway.sh",
+      "args": []
+    }
+  },
+  "skills": "./skills"
+}

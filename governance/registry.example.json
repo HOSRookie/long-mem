@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "_comment": "复制为 registry.json 并填入你自己的路径。binary 指向 engram 二进制，database 指向你的 engram.db，native_probe_url 指向 engram serve 的本机探针。projects 里登记每个项目的真实根目录与别名。shared_projects 列出哪些项目的 pinned 约束会在启动时附加注入。",
+  "binary": "/absolute/path/to/engram",
+  "database": "/absolute/path/to/engram-data/engram.db",
+  "native_probe_url": "http://127.0.0.1:7437/project/current",
+  "shared_projects": [],
+  "projects": {
+    "myproject": {
+      "roots": ["/absolute/path/to/myproject"],
+      "aliases": ["MyProject"]
+    }
+  }
+}

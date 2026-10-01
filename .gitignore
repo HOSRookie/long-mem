@@ -1,0 +1,17 @@
+# ── long_mem 开源项目 .gitignore ──
+# 治理层私有配置（用户从 example 生成，不进 Git）
+governance/registry.json
+# 数据库
+*.db
+*.db-shm
+*.db-wal
+# Python
+__pycache__/
+*.pyc
+*.pyo
+# macOS
+.DS_Store
+# 编辑器
+*.swp
+*.swo
+*~

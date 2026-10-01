@@ -1,0 +1,22 @@
+{
+  "name": "long-mem-market",
+  "owner": {
+    "name": "HOSRookie"
+  },
+  "plugins": [
+    {
+      "name": "long-mem",
+      "source": "./",
+      "version": "0.1.1",
+      "description": "Compaction-proof long-term memory for AI coding agents",
+      "displayName": "long_mem — Compaction-Proof Memory",
+      "displayName_i18n": {
+        "zh-CN": "long_mem — 压缩免疫长期记忆"
+      },
+      "description_i18n": {
+        "zh-CN": "会话启动注入、压缩后直接续接、治理型 engram 长期记忆（MCP）。对话不是存储介质。"
+      },
+      "category": "productivity"
+    }
+  ]
+}

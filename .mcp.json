@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "long_mem": {
+      "command": "${PLUGIN_ROOT}/scripts/mcp-gateway.sh",
+      "args": []
+    }
+  }
+}

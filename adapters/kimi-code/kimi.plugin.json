@@ -1,0 +1,19 @@
+{
+  "name": "long-mem",
+  "version": "0.1.0",
+  "description": "Compaction-proof long-term memory: governed engram memory via MCP. Conversation is not a storage medium.",
+  "keywords": ["memory", "persistence", "compaction", "sessions", "governance"],
+  "license": "MIT",
+  "skills": "./skills/",
+  "systemPromptPath": "./SYSTEM.md",
+  "mcpServers": {
+    "long_mem": {
+      "command": "long-mem-gateway"
+    }
+  },
+  "interface": {
+    "displayName": "long_mem — Compaction-Proof Memory",
+    "shortDescription": "压缩免疫的长期记忆（治理型 engram）",
+    "developerName": "HOSRookie"
+  }
+}

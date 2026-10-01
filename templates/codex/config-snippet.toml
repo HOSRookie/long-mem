@@ -1,0 +1,27 @@
+# ── long_mem · Codex 接入片段 ────────────────────────────────
+# 把以下内容合并到你的 ~/.codex/config.toml。
+# 把 <LONG_MEM_HOME> 替换为你 clone long_mem 的绝对路径。
+
+# 1. 每轮系统提示注入记忆生命周期协议（治理 POLICY 的唯一事实源）
+model_instructions_file = "<LONG_MEM_HOME>/governance/POLICY.md"
+
+# 2. 覆盖 codex 内置压缩笔记模板
+experimental_compact_prompt_file = "<LONG_MEM_HOME>/templates/codex/compact-prompt.md"
+
+# 3. 开启 codex 内置记忆/编年（提供 history/notes/new_context 工具）
+[features]
+memories = true
+chronicle = true
+
+# 4. 治理 MCP：记忆写入的唯一受控入口
+[mcp_servers.long_mem]
+command = "python3"
+args = ["<LONG_MEM_HOME>/governance/gateway.py"]
+
+[mcp_servers.long_mem.env]
+# 指向 registry.json 所在目录（治理层）
+LONG_MEM_REGISTRY = "<LONG_MEM_HOME>/governance/registry.json"
+# 指向 engram 数据目录（registry.json 里 database 的父目录）
+ENGRAM_DATA_DIR = "/path/to/your/engram-data"
+# 可选：锁定到一个工作区项目（防止从 HOME 启动时错桶）
+# LONG_MEM_WORKSPACE = "/absolute/path/to/your/project"
