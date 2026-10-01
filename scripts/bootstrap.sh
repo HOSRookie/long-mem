@@ -26,8 +26,14 @@ esac
 [ -f "$REGISTRY" ] && exit 0
 
 # 需要 engram
-ENGRAM_BIN="$(command -v engram 2>/dev/null || true)"
+ENGRAM_BIN="${ENGRAM_BIN:-}"
 if [ -z "$ENGRAM_BIN" ]; then
+    ENGRAM_BIN="$(command -v engram 2>/dev/null || true)"
+fi
+if [ -z "$ENGRAM_BIN" ] && [ -f "${HOME}/.engram/governance/active/registry.json" ]; then
+    ENGRAM_BIN="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("binary", ""))' "${HOME}/.engram/governance/active/registry.json")"
+fi
+if [ -z "$ENGRAM_BIN" ] || [ ! -x "$ENGRAM_BIN" ]; then
     echo "long_mem: 需要 engram。先跑: brew install engram" >&2
     exit 1
 fi

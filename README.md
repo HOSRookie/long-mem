@@ -1,163 +1,134 @@
 # long_mem
 
-AI 编码代理干着活就失忆。这个让它不失忆。
+**Compaction-Proof Memory for AI coding agents.**
 
-窗口被压缩、被重置、隔几天再开，它照样接着干，不用你重复说。
+> 对话不是存储介质。
+> 窗口里的东西会丢，那就别放窗口里——写到外部持久存储，窗口里只放指针。
 
-实证：Codex CLI 连续跑了 5 天 21 小时，压缩 40 多次，没丢过上下文。
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Agents](https://img.shields.io/badge/agents-Codex·ClaudeCode·ZCode·KimiCode-8A2BE2)
+![实测](https://img.shields.io/badge/实测-5天21小时·40%2B次压缩·零丢失-green)
+![X](https://img.shields.io/badge/X-%40Rylie1933-black?logo=x)
 
-这玩意是从一个更大的 AI 任务治理项目里拆出来的。那个项目由 AI 代理自己推进，多天连续运行，全程有公开记录：[nextAgentPolars/polars-log](https://github.com/nextAgentPolars/polars-log)。
+**long_mem** 让 AI 编码代理在上下文压缩、会话重置、隔天续开之后照样接着干——不用你重复说一遍。
 
----
+实证：Codex CLI 连续跑了 **5 天 21 小时**，压缩 **40 多次**，没丢过上下文。全程公开记录：[polars-log](https://github.com/nextAgentPolars/polars-log)。
 
-## 问题
+构建过程与动态长期更新于 X：**[@Rylie1933](https://x.com/Rylie1933)**。
 
-你用 Claude Code、Codex、Cline 还是别的，都碰过：
+## 为什么需要它
 
-- 上下文满了，压缩，agent 失忆
-- 忘了你给过的授权，重做已经做完的活
-- 或者直接说「我丢了上下文，你再说一遍」
+所有 AI 编码代理（Claude Code、Codex、ZCode、Kimi Code……）都有同一个病：**对话就是它的全部记忆**。于是：
 
-long_mem 的做法：窗口里的东西会丢，那就别放窗口里。写到外面的持久存储，窗口里只放指针。压缩后按指针把原文读回来。
+- 窗口满了 → 压缩 → agent 失忆，忘掉你给过的授权和约束
+- 隔天续开 → 重来一遍，重做已经做完的活
+- 更糟的：一些上下文插件开始**采集你的提示词**、被动捕获子代理输出、强制生成摘要——把你的对话变成它的数据源
 
-两层存储：
+常见的补救是更好的摘要——那只是**更好的有损压缩**。
+
+long_mem 的做法是一个反转：**对话不是存储介质。**唯一长期记忆住在外部持久存储（engram + agent 自身 history），窗口里只放指针。压缩毁掉的是"对话"，而对话里没有唯一状态——所以压缩成了非事件。
+
+## 工作原理
+
+```text
+┌─ 会话启动 ────────────▶ 注入治理协议 + pinned 记忆索引
+│
+├─ 会话中 ……  agent 把"值得记的判断"写入 engram（经治理 gateway）
+│              窗口里只有指针，按 ID 回读正文
+│
+├─ 上下文压缩 ──────────▶ 注入"直接续接"指令；按指针恢复，不重存摘要
+│
+└─ 会话结束/隔天续开 ──▶ 从 engram + history 按需重建，不靠对话
+```
+
+**两层存储：**
 
 | 层 | 管什么 | 靠什么 |
 |---|---|---|
-| 历史召回 | 发生了什么 | agent 自己的 history 工具（如 Codex 的 SQLite history） |
+| 历史召回 | 发生了什么 | agent 自带 history（如 Codex 的 SQLite history） |
 | 判断沉淀 | 为什么这么定 | [engram](https://github.com/Gentleman-Programming/engram) |
 
-治理层是这个项目的重点。把上游记忆插件的提示词采集、被动捕获、强制摘要三个自动口子焊死，只留启动注入和压缩恢复。防的是 agent 自己把记忆库搞脏。
+**治理层是这个项目的重点。**上游记忆插件的三个自动口子——提示词采集、被动捕获、强制摘要——被焊死，只留启动注入和压缩恢复。防的是 agent 自己把记忆库搞脏：
 
-## 装
+| 上游钩子 | 上游行为 | long_mem |
+|---|---|---|
+| UserPromptSubmit | 采集每次提示词 | ❌ 焊死（可能带凭据） |
+| SubagentStop | 被动捕获子代理输出 | ❌ 焊死 |
+| SessionEnd | 强制生成摘要 | ❌ 焊死 |
+| SessionStart | 注入记忆 | ✅ 保留 |
+| 压缩后 | 恢复上下文 | ✅ 保留 |
 
-### 先说清楚：engram 要单独装
+## 快速开始
 
-long_mem 不含记忆后端。必须先装 [engram](https://github.com/Gentleman-Programming/engram)：
+前置：安装 [engram](https://github.com/Gentleman-Programming/engram)：
 
 ```sh
 brew install engram
 ```
 
-没 brew 的去上游仓库看别的装法。
+然后按你的 agent 选一行：
 
-### 装 long_mem（Codex 插件）
-
-先拿到代码：
-
-```sh
-# 用 marketplace 直接加，不用手动 clone
-```
-
-在 `~/.codex/config.toml` 里加：
-
-```toml
-[marketplaces.long-mem]
-source_type = "git"
-source = "<这个仓库的地址>"
-ref = "main"
-
-[plugins."long-mem@long-mem"]
-enabled = true
-```
-
-刷新 Codex 插件。完事。
-
-第一次开会话时，插件自己生成配置（`governance/registry.json`），你不用管。
-
-### 起 engram serve
-
-```sh
-ENGRAM_DATA_DIR=~/.engram engram serve &
-```
-
-治理层写入前要用它的本机探针核验项目归属。不起的话写入会被拒。
-
-建议配成开机自启（macOS 用 launchd，Linux 用 systemd）。命令就是这个。
-
-## 用
-
-### 第一次
-
-插件会拿你启动时所在的项目目录自动登记。如果不对，直接编辑 `governance/registry.json`。
-
-### 日常
-
-三件事：
-
-- 告诉它「这个值得长期记住」。只有 pin 的才是长期资产，其余 24 到 48 小时自动过期。
-- 同主题让它更新同一条，别平行堆。
-- 只读的活开头说一句「这次只读，别写记忆」。
-
-其他时间不用管机制本身。
-
-### 验证它到底有没有用
-
-1. 开新会话，说「记住：这个项目的测试命令是 make test」。
-2. 让它 pin。
-3. 关掉会话，开新会话，问它测试命令是什么。
-4. 它应该记得。
-
-压缩续接单独验：跑个长任务到触发压缩，压缩后它应该直接接着干，不重新问你。
-
-## 其他 agent
-
-| Agent | 看哪 |
+| Agent | 安装 |
 |---|---|
-| Cline | [templates/cline](templates/cline/) |
-| ZCode | [templates/zcode](templates/zcode/) |
-| 其他支持 MCP 的 | [templates/generic-agent](templates/generic-agent/) |
+| **Codex** | 见 [PLUGIN.md](PLUGIN.md)（config.toml 加 marketplace） |
+| **Claude Code** | `claude plugin marketplace add HOSRookie/long-mem` → install long-mem |
+| **ZCode** | 插件市场 → 添加 → 粘贴本仓库地址 |
+| **Kimi Code** | `/plugins install <本仓库>/adapters/kimi-code`，见[适配说明](adapters/kimi-code/README.md) |
+| **Gemini / Qwen / MiniMax / 其他** | 克隆本仓库 → `scripts/inject-rules.sh` + 按[兼容矩阵](#兼容矩阵)配 MCP |
 
-## 目录
+装完之后：开新会话，agent 自动看到治理协议和你项目的 pinned 记忆索引。压缩之后它会直接续接——试一下就懂了。
 
-```
-governance/     治理层：项目路由、只读索引、钩子、MCP 写入口
-templates/      各 agent 接入模板
-hooks/          上游 engram 插件补丁（禁掉采集钩子）
-scripts/        插件脚本（启动注入、压缩恢复、自举）
-docs/           使用流程
-```
+## 兼容矩阵
 
-## 出问题
-
-| 症状 | 原因 | 怎么办 |
-|---|---|---|
-| 写入报 `native_project_binding_unverified` | engram serve 没起，或探针返回的项目跟 registry 不一致 | 起 serve；核对 registry.json 的根目录 |
-| 写入报 `explicit_project_required` | 当前目录没登记 | 显式传 project，或在 registry.json 里登记 |
-| 记忆落错桶、搜不到 | 从 HOME 启动，项目标签没锁 | 设 `LONG_MEM_WORKSPACE` 为项目根 |
-| 中文搜不到 | engram 的 FTS 对中文分词弱 | 用 `engram context <project>` 拉索引，再按 ID 读正文 |
-
-## 已知限制
-
-- engram 的中文全文搜索弱。召回靠索引加按 ID 读，不靠搜索。
-- 单信任域。多 agent 共用同一库时，权限靠行为规范，不是访问控制。
-- 什么该存、什么不该存，靠 agent 判断。机制只保证存了的不丢。
-
-## 安全
-
-- 数据库读取只读。
-- 写入唯一入口是治理 gateway，写前用本机 HTTP 探针核验项目。
-- `mem_delete`、`mem_capture_passive`、`mem_save_prompt` 被封禁。
-- 云同步默认关。
-- 不采集提示词，不做被动捕获。
-
-## 多端兼容
-
-核心是同一个 MCP gateway + engram；各家的差异只在清单格式和钩子能力。
-
-| Agent | MCP | 常驻规则 | 生命周期钩子 | 手动恢复 | 安装入口 |
-|---|---|---|---|---|---|
-| **Codex** | ✓ | AGENTS.md 模板 | ✓ 插件 hooks（startup/resume/clear + compact） | compact-prompt 模板 | [PLUGIN.md](PLUGIN.md) |
-| **Claude Code** | ✓ | `inject-rules.sh` 注入 CLAUDE.md | ✓ SessionStart（startup/resume/clear/compact） | skill `long-mem-recover` | 市场：`.claude-plugin/marketplace.json` |
-| **ZCode** | ✓ | rules 模板 | ✓ SessionStart（compact matcher 待实测） | skill `long-mem-recover` | 市场：根目录 [marketplace.json](marketplace.json) |
-| **Kimi Code** | ✓ 插件捆绑 | SYSTEM.md 系统提示注入 | sessionStart.skill ✓（hooks 待官方稳定） | skill | `/plugins install adapters/kimi-code`，见 [adapters/kimi-code](adapters/kimi-code/README.md) |
-| **Gemini CLI / Qwen Code** | ✓ | `inject-rules.sh` 注入 GEMINI.md / QWEN.md | ✗ 无钩子 → 规则 + 手动 | 规则指令 | `scripts/inject-rules.sh` |
-| **DeepSeek Harness** | 大概率兼容 Claude 插件格式（官方定位为 Claude Code 对标，未验证） | 同上 | 未验证 | 同上 | 试 `.claude-plugin` 市场 |
-| **MiniMax / 其他支持 MCP 的 agent** | ✓（MCP 标准） | `inject-rules.sh` | 视各家 | `inject-rules.sh` | generic 模板 |
+| Agent | MCP | 常驻规则 | 生命周期钩子 | 手动恢复 |
+|---|---|---|---|---|
+| Codex | ✓ | AGENTS.md | ✓ 插件 hooks | compact-prompt |
+| Claude Code | ✓ | CLAUDE.md 注入 | ✓ SessionStart（含 compact） | skill long-mem-recover |
+| ZCode | ✓ | rules 模板 | ✓ SessionStart（compact matcher 待实测） | skill long-mem-recover |
+| Kimi Code | ✓ 插件捆绑 | systemPrompt 注入 | sessionStart.skill ✓（hooks 待验证） | skill |
+| Gemini / Qwen / 其他 | ✓ | inject-rules.sh | —（规则 + 手动恢复） | skill |
 
 原则：**MCP 是最大公约数，钩子是加分项。**没有钩子的 agent 用常驻规则 + 手动恢复 skill 也能拿到 90% 的价值；有钩子的 agent 额外获得零操作注入。
 
-## 捐赠
+## 治理与安全
+
+记忆库的信任模型是 fail-closed：
+
+- 写入唯一入口是治理 gateway：工具黑名单（`mem_delete` / `mem_capture_passive` / `mem_save_prompt` / `mem_merge_projects`）
+- 上游二进制 sha256 身份门：漂移即拒
+- 会话 ↔ 项目双重绑定（DB 属主检查 + 本机探针独立验证）
+- 记忆内容 16KB 上限——正文放外面，记忆里存证据引用
+- 数据库读取强制只读；云同步默认关；凭证明文不进记忆
+
+完整协议见 [governance/POLICY.md](governance/POLICY.md)。
+
+## 已知限制
+
+- engram 的中文全文搜索弱：召回靠索引 + 按 ID 读，不靠搜索
+- 单信任域：多 agent 共库时，权限靠行为规范而非访问控制
+- 什么该存靠 agent 判断：机制保证存了的不丢，不保证判断本身正确
+
+## 反馈与贡献
+
+- 建议与反馈：欢迎开 [Issue](https://github.com/HOSRookie/long-mem/issues)，每条都会看。
+- 代码贡献：先开 Issue 对齐方向；main 分支受保护，PR 由作者审核后合并——**防投毒是第一原则**。
+
+## 文档
+
+[PLUGIN.md](PLUGIN.md) · [docs/USAGE.md](docs/USAGE.md) · [adapters/](adapters/) · [templates/](templates/) · [governance/POLICY.md](governance/POLICY.md)
+
+## 生态
+
+long_mem 是一套更大工程体系的冰山一角：
+
+- **北极星**（进行中）— 面向严肃开发场景的 agent 任务治理系统，long_mem 只是从它拆出来的一个微不足道的小功能。可以透露的一点：我在用结构化治理层抑制 LLM 的幻觉——**不是消灭幻觉，是让幻觉没有可以生效的场景**。公开过程记录：[polars-log](https://github.com/nextAgentPolars/polars-log)。
+- **蓝色空间号**（保密中）— 名字很浪漫，东西还在验证。等它值得说的时候，这里会有链接。
+
+如果这个方向对你有吸引力，欢迎点个 Star——对长周期项目来说，Star 是为数不多的燃料。
+
+## 赞赏
+
+开发这个项目烧的是真金白银的 token。如果 long_mem 实实在在帮到了你，厚着脸皮讨一份打赏——每一份都会变成下一轮实验的上下文窗口。
 
 海外：[GitHub Sponsors](https://github.com/sponsors/HOSRookie)
 

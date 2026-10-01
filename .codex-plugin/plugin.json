@@ -1,7 +1,7 @@
 {
   "name": "long-mem",
   "displayName": "long_mem — Compaction-Proof Memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Long-term memory continuity for AI coding agents. Survives context compaction, session restarts, and multi-day runs.",
   "shortDescription": "Compaction-proof long-term memory with governance.",
   "keywords": ["memory", "persistence", "compaction", "sessions", "context", "governance"],
