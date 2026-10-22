@@ -10,12 +10,18 @@ English | [简体中文](README.zh-CN.md)
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Agents](https://img.shields.io/badge/agents-Codex·ClaudeCode·ZCode·KimiCode-8A2BE2)
-![Field-tested](https://img.shields.io/badge/field--tested-5d_21h_40%2B_compactions_zero_loss-green)
+![Field-tested](https://img.shields.io/badge/field--tested-504_compactions-green)
 ![X](https://img.shields.io/badge/X-%40Rylie1933-black?logo=x)
 
 **long_mem** keeps AI coding agents continuous across context compaction, session restarts, and multi-day runs — without you repeating yourself.
 
-Field-tested: one Codex CLI session ran for **5 days 21 hours** through **40+ compactions** with zero context loss. The full run log is public: [polars-log](https://github.com/nextAgentPolars/polars-log).
+**Field-tested on one machine.** A Codex session ran **5 days 21 hours** through **40+ compactions** without losing context. That run predates long_mem as a plugin — it used the same mechanism by hand: an external memory store plus a custom compaction prompt.
+
+Since then, across the 22 sessions that actually used the memory tools, 504 compactions have been logged. In the one I examined most closely — 49 compactions over 60 hours — 46 were followed by an automatic `mem_context` pull from engram within minutes, before I typed anything.
+
+![49 compactions in 60 hours](docs/images/compaction-run.svg)
+
+The numbers come from Codex's own session database, which records every `contextCompaction` event. Method, query and limits: [docs/DEMO.md](docs/DEMO.md).
 
 Build logs and ongoing updates on X: **[@Rylie1933](https://x.com/Rylie1933)**.
 
@@ -121,7 +127,7 @@ Full policy: [governance/POLICY.md](governance/POLICY.md).
 
 ## Docs
 
-[PLUGIN.md](PLUGIN.md) · [docs/USAGE.md](docs/USAGE.md) · [adapters/](adapters/) · [templates/](templates/) · [governance/POLICY.md](governance/POLICY.md)
+[PLUGIN.md](PLUGIN.md) · [docs/USAGE.md](docs/USAGE.md) · [docs/DEMO.md](docs/DEMO.md) · [adapters/](adapters/) · [templates/](templates/) · [governance/POLICY.md](governance/POLICY.md)
 
 ## Ecosystem
 

@@ -9,12 +9,18 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Agents](https://img.shields.io/badge/agents-Codex·ClaudeCode·ZCode·KimiCode-8A2BE2)
-![实测](https://img.shields.io/badge/实测-5天21小时·40%2B次压缩·零丢失-green)
+![实测](https://img.shields.io/badge/实测-504次压缩-green)
 ![X](https://img.shields.io/badge/X-%40Rylie1933-black?logo=x)
 
 **long_mem** 让 AI 编码代理在上下文压缩、会话重置、隔天续开之后照样接着干——不用你重复说一遍。
 
-实证：Codex CLI 连续跑了 **5 天 21 小时**，压缩 **40 多次**，没丢过上下文。全程公开记录：[polars-log](https://github.com/nextAgentPolars/polars-log)。
+**实测在一台机器上。** Codex 有会话连续跑了 **5 天 21 小时**、压缩 **40 多次**，没丢过上下文。那次早于 long_mem 成为插件——用的是同一套机制，手工搭的：外部记忆库加一段自定义压缩提示词。
+
+之后在真正用到记忆工具的 22 个会话里，累计记录 **504 次压缩**。其中我细看的那一个跑了 60 小时、49 次压缩，有 46 次在压缩后几分钟内自动从 engram 拉回上下文——你还没开口。
+
+![60 小时 49 次压缩](docs/images/compaction-run.svg)
+
+数字来自 Codex 自己的会话库，每一次 `contextCompaction` 都有记录。方法、查询语句与边界：[docs/DEMO.md](docs/DEMO.md)。
 
 构建过程与动态长期更新于 X：**[@Rylie1933](https://x.com/Rylie1933)**。
 
@@ -117,7 +123,7 @@ brew install engram
 
 ## 文档
 
-[PLUGIN.md](PLUGIN.md) · [docs/USAGE.md](docs/USAGE.md) · [adapters/](adapters/) · [templates/](templates/) · [governance/POLICY.md](governance/POLICY.md)
+[PLUGIN.md](PLUGIN.md) · [docs/USAGE.md](docs/USAGE.md) · [docs/DEMO.md](docs/DEMO.md) · [adapters/](adapters/) · [templates/](templates/) · [governance/POLICY.md](governance/POLICY.md)
 
 ## 生态
 
