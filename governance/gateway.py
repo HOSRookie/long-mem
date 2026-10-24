@@ -38,6 +38,8 @@ READ_ONLY = {'mem_search', 'mem_get_observation', 'mem_context', 'mem_current_pr
              'mem_stats', 'mem_timeline', 'mem_doctor', 'mem_compare'}
 ID_TOOLS = {'mem_update', 'mem_pin', 'mem_unpin', 'mem_get_observation', 'mem_timeline'}
 POLICY = ('Memory lifecycle: save only durable judgment, recurring pitfalls, user constraints and reusable conventions. '
+          'Adjudicate depth before writing (none / daily log / unpinned / pinned); a write files a claim, retrieval opens the trial, changed behavior is the witness. '
+          'Fidelity belongs to session files; memory stores only behavior-changing distillates. '
           'Pin durable assets; do not save ordinary progress or force summaries after short tasks or compaction. '
           'Explicit canonical project is required without a registered workspace. Shared DB does not mean shared project. '
           'Read-only user requests prohibit memory writes too. Never store raw prompts, credentials or manuscript text. '

@@ -7,7 +7,7 @@
     {
       "name": "long-mem",
       "source": "./",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "Compaction-proof long-term memory for AI coding agents",
       "displayName": "long_mem — Compaction-Proof Memory",
       "displayName_i18n": {
